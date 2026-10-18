@@ -16,9 +16,21 @@
   const controls = [];
   const make = (tag, text, className) => { const node = document.createElement(tag); if (text) node.textContent = text; if (className) node.className = className; return node; };
   const button = (text, click, className = "btn") => { const node = make("button", text, className); node.type = "button"; node.addEventListener("click", click); return node; };
-  const toast = make("p", "", "account-notice"); toast.setAttribute("role", "status"); toast.hidden = true; document.body.append(toast);
-  let toastTimer;
-  function tell(message) { toast.textContent = message; toast.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toast.hidden = true; }, 6500); }
+  const activeShell = () => document.querySelector(document.documentElement.dataset.uiShell === "current" ? "#shellCurrent" : "#shellNew");
+  function icon(name, small = false) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    node.setAttribute("class", `ico${small ? " sm" : ""}`); node.setAttribute("aria-hidden", "true");
+    const use = document.createElementNS(node.namespaceURI, "use"); use.setAttribute("href", `#i-${name}`); node.append(use); return node;
+  }
+  function iconButton(label, name, click) {
+    const node = button("", click, "icon-btn"); node.title = label; node.setAttribute("aria-label", label); node.append(icon(name)); return node;
+  }
+  function tell(message) {
+    const toast = make("div", "", "toast multiplayer-toast"); toast.setAttribute("role", "status");
+    toast.append(icon("info"), make("span", message));
+    (activeShell().querySelector(".toasts, .multiplayer-toast-stack") || activeShell()).append(toast);
+    setTimeout(() => toast.remove(), 6500);
+  }
   async function request(path, method = "GET", body) {
     const response = await fetch(new URL(path, feedback), { method, credentials: "include", cache: "no-store", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
     const result = await response.json();
@@ -47,18 +59,24 @@
       item.title.title = current ? `Revision ${current.revision}${dirty ? " · Unsaved changes" : " · Saved"}` : "Save this draft to your account";
       item.identity.textContent = player ? player.displayName : "Sign in";
       item.save.disabled = busy; item.submit.disabled = busy;
+      item.title.classList.toggle("is-dirty", dirty);
     }
   }
-  function close(overlay) { overlay.remove(); const i = overlays.indexOf(overlay); if (i >= 0) overlays.splice(i, 1); overlay.returnFocus?.focus(); }
+  function close(overlay) { overlay.remove(); const i = overlays.indexOf(overlay); if (i >= 0) overlays.splice(i, 1);
+    if (!overlays.length) document.querySelectorAll("[data-ui-shell]").forEach(button => { button.disabled = false; });
+    overlay.returnFocus?.focus(); }
   function dialog(title, wide = false) {
-    const overlay = make("div", "", "account-scrim");
-    overlay.returnFocus = document.activeElement;
-    const panel = make("section", "", `account-dialog${wide ? " account-wide" : ""}`);
+    globalThis.CosmowarUIShell?.closeOverlays?.();
+    const overlay = make("div", "", "modal-scrim account-scrim");
+    overlay.returnFocus = document.activeElement?.closest(".menu-popover") ? document.querySelector('[data-menu="menuFile"]') : document.activeElement;
+    const panel = make("section", "", `settings-modal account-dialog${wide ? " account-wide" : ""}`);
     panel.setAttribute("role", "dialog"); panel.setAttribute("aria-modal", "true"); panel.setAttribute("aria-label", title); panel.tabIndex = -1;
-    const header = make("header"); header.append(make("h2", title), button("Close", () => close(overlay)));
-    panel.append(header); overlay.append(panel); overlays.push(overlay); document.body.append(overlay);
+    const header = make("header");
+    header.append(icon(wide ? "grid-four" : "floppy-disk"), make("h2", title), iconButton("Close", "x", () => { if (!busy) close(overlay); }));
+    panel.append(header); overlay.append(panel); overlays.push(overlay); activeShell().append(overlay);
+    document.querySelectorAll("[data-ui-shell]").forEach(button => { button.disabled = true; });
     overlay.addEventListener("click", event => { if (event.target === overlay && !busy) close(overlay); });
-    panel.focus(); return { panel, overlay };
+    panel.focus(); return { panel, overlay, header };
   }
   document.addEventListener("keydown", event => {
     const overlay = overlays.at(-1);
@@ -73,7 +91,7 @@
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }
   }, true);
-  function field(label, value, maxLength = 80) { const wrap = make("label"); wrap.append(make("span", label)); const input = make("input"); input.value = value || ""; input.maxLength = maxLength; wrap.append(input); return { wrap, input }; }
+  function field(label, value, maxLength = 80) { const wrap = make("label"); wrap.append(make("span", label)); const input = make("input"); input.type = "text"; input.value = value || ""; input.maxLength = maxLength; wrap.append(input); return { wrap, input }; }
   function updateUrl(id) { const url = new URL(location.href); url.searchParams.delete("gallery"); if (id) url.searchParams.set("map", id); else url.searchParams.delete("map"); window.history.replaceState(null, "", url); }
   function changed() {
     clearTimeout(polling);
@@ -96,49 +114,75 @@
   }
   async function gallery() {
     if (!player) return signIn();
-    const { panel, overlay } = dialog("My maps", true);
-    const search = field("Search maps", "", 120); search.input.type = "search";
-    const folder = make("select"); folder.setAttribute("aria-label", "Folder");
+    const { panel, overlay, header } = dialog("My maps", true);
+    const create = button("New map", () => { if (!busy && api.newMap()) close(overlay); }, "btn primary");
+    create.prepend(icon("plus", true)); header.insertBefore(create, header.lastChild);
+    const layout = make("div", "", "settings-layout account-browser");
+    const folders = make("nav", "", "account-folders"); folders.setAttribute("aria-label", "Map folders");
+    const content = make("div", "", "account-browser-content");
+    const search = field("Search maps", "", 120); search.wrap.className = "account-search";
+    search.wrap.firstChild.className = "sr"; search.input.type = "search"; search.input.placeholder = "Find a map"; search.wrap.prepend(icon("magnifying-glass", true));
     const status = make("select"); status.setAttribute("aria-label", "Submission status");
     for (const label of ["All statuses", "Draft", "Submitted", "Accepted"]) { const option = make("option", label); option.value = label; status.append(option); }
-    const toolbar = make("div", "", "account-filters"); toolbar.append(search.wrap, folder, status, button("New map", () => { if (busy) return; if (api.newMap()) close(overlay); }));
-    const list = make("div", "", "account-map-grid"); const message = make("p", "Loading your maps…", "account-hint");
-    panel.append(toolbar, message, list);
+    const toolbar = make("div", "", "account-filters"); toolbar.append(search.wrap, status);
+    const list = make("div", "", "account-map-list"); list.setAttribute("aria-label", "Saved maps");
+    const message = make("p", "Loading maps…", "account-browser-count"); message.setAttribute("role", "status");
+    content.append(toolbar, list, message); layout.append(folders, content); panel.append(layout);
+    let folder = "*";
     function render() {
       list.replaceChildren();
       const query = search.input.value.toLowerCase();
-      const shown = maps.filter(map => (!query || `${map.name} ${map.folder} Defuse`.toLowerCase().includes(query)) && (folder.value === "*" || map.folder === folder.value) && (status.value === "All statuses" || labels(map).includes(status.value)));
-      message.textContent = maps.length ? `${shown.length} of ${maps.length} maps · Defuse` : "Your gallery is empty. Save your current draft to start.";
+      const shown = maps.filter(map => (!query || `${map.name} ${map.folder} Defuse`.toLowerCase().includes(query)) && (folder === "*" || map.folder === folder) && (status.value === "All statuses" || labels(map).includes(status.value)));
+      message.textContent = `${shown.length} of ${maps.length} maps`;
+      if (!shown.length) list.append(make("p", maps.length ? "No matching maps." : "No saved maps yet. Use File → Save map to add one.", "account-empty"));
       for (const map of shown) {
-        const card = make("article", "", "account-map-card");
-        card.append(make("h3", map.name), make("p", map.folder || "Unfiled", "account-hint"));
-        const tags = make("div", "", "account-tags"); labels(map).forEach(label => tags.append(make("span", label, `account-tag tag-${label.toLowerCase()}`))); card.append(tags);
-        card.append(make("p", `Revision ${map.revision} · ${new Date(map.updatedAt).toLocaleDateString()}`, "account-hint"));
-        const actions = make("div", "", "account-card-actions"); actions.append(button("Open in editor", () => void openMap(map.id, overlay), "btn primary"));
-        if (map.reportId) { const link = make("a", "Feedback", "btn"); link.href = new URL(`/r/${map.reportId}`, feedback).href; actions.append(link); }
-        card.append(actions); list.append(card);
+        const row = make("article", "", "account-map-row");
+        if (map.id === current?.id) row.classList.add("is-current");
+        const open = button("", () => void openMap(map.id, overlay), "account-map-open");
+        const description = make("span", "", "account-map-description");
+        description.append(make("strong", map.name), make("span", `${map.folder || "Unfiled"} · Defuse · v${map.revision}`, "account-map-meta"));
+        open.append(icon("bounding-box"), description); row.append(open);
+        const tags = make("div", "", "account-tags");
+        labels(map).filter(label => label !== "Defuse").forEach(label => tags.append(make("span", label, `account-state state-${label.toLowerCase()}`)));
+        row.append(tags);
+        const modified = make("time", new Date(map.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }), "account-map-date"); modified.dateTime = map.updatedAt; row.append(modified);
+        if (map.reportId) {
+          const link = make("a", "", "icon-btn"); link.href = new URL(`/r/${map.reportId}`, feedback).href;
+          link.title = "Open feedback"; link.setAttribute("aria-label", `Feedback for ${map.name}`); link.append(icon("link-simple", true)); row.append(link);
+        } else row.append(make("span", "", "account-link-space"));
+        list.append(row);
       }
     }
-    search.input.addEventListener("input", render); folder.addEventListener("change", render); status.addEventListener("change", render);
+    search.input.addEventListener("input", render); status.addEventListener("change", render);
     try {
       maps = (await request("/api/maps")).maps;
-      const folders = ["*", ...new Set(["", ...maps.map(map => map.folder)])];
-      for (const path of folders) { const option = make("option", path === "*" ? "All folders" : path || "Unfiled"); option.value = path; folder.append(option); }
+      const paths = ["*", ...new Set(["", ...maps.map(map => map.folder)])];
+      for (const path of paths) {
+        const item = button("", () => {
+          folder = path;
+          for (const sibling of folders.children) { sibling.classList.toggle("active", sibling === item); sibling.setAttribute("aria-pressed", String(sibling === item)); }
+          render();
+        }, "settings-tab");
+        item.append(icon(path === "*" ? "grid-four" : "stack-simple", true), make("span", path === "*" ? "All maps" : path || "Unfiled"));
+        item.classList.toggle("active", path === "*"); item.setAttribute("aria-pressed", String(path === "*")); folders.append(item);
+      }
       render(); search.input.focus();
     } catch (error) { message.textContent = error.message; }
   }
   function saveDialog(submit = false) {
     if (!player) return signIn();
     if (!player.nameConfirmed) { const welcome = new URL("/welcome", feedback); welcome.searchParams.set("next", location.href); location.assign(welcome.href); return; }
-    const { panel, overlay } = dialog(submit ? "Submit map for review" : "Save map");
+    const { panel, overlay } = dialog(submit ? "Submit for review" : "Save map");
     const form = make("form", "", "account-save-form");
     const name = field("Map name", current?.name || ""); name.input.required = true;
     const folder = field("Folder", current?.folder || ""); folder.input.placeholder = "e.g. In progress / Arenas";
-    const mode = make("p", "Game mode: Defuse", "account-hint");
-    const note = make("p", submit ? "This saves a revision and opens its feedback conversation with the map review team. Later changes require another approval." : "Your draft is saved to your account. Submitted and accepted revisions stay available for review.", "account-hint");
+    const mode = make("div", "", "account-mode"); mode.append(make("span", "Game mode"), make("span", "Defuse", "readonly"));
+    const note = make("p", submit ? "Saves this revision and opens its feedback discussion." : "", "account-hint");
     const errorLine = make("p", "", "account-error"); errorLine.setAttribute("role", "status");
-    const save = make("button", submit ? "Save and submit" : "Save to account", "btn primary"); save.type = "submit";
-    form.append(name.wrap, folder.wrap, mode, note, errorLine, save); panel.append(form); name.input.focus();
+    const save = make("button", submit ? "Submit for review" : "Save map", "btn primary"); save.type = "submit";
+    const fields = make("div", "", "account-form-fields"); fields.append(name.wrap, folder.wrap, mode, note, errorLine);
+    const footer = make("footer", "", "account-dialog-actions"); footer.append(button("Cancel", () => { if (!busy) close(overlay); }), save);
+    form.append(fields, footer); panel.append(form); name.input.focus();
     form.addEventListener("submit", async event => {
       event.preventDefault(); if (busy) return;
       busy = true; sync(); save.disabled = true; errorLine.textContent = "";
@@ -158,14 +202,31 @@
       finally { busy = false; save.disabled = false; sync(); }
     });
   }
-  for (const host of [document.querySelector("#shellNew .topbar"), document.querySelector("#shellCurrent .sidebar-header")].filter(Boolean)) {
-    const toolbar = make("div", "", "account-toolbar");
-    const title = button("Local draft", () => saveDialog()); title.classList.add("account-title");
-    const save = button("Save", () => saveDialog());
-    const submit = button("Submit", () => saveDialog(true), "btn primary");
-    const identity = button("Sign in", () => { if (!player) signIn(); else void gallery(); });
-    toolbar.append(title, button("My maps", () => void gallery()), save, submit, identity);
-    host.append(toolbar); controls.push({ title, save, submit, identity });
+  const shell = document.getElementById("shellNew");
+  const topbar = shell.querySelector(".topbar");
+  const title = button("Local draft", () => saveDialog(), "menu-btn account-title");
+  topbar.insertBefore(title, topbar.querySelector(".top-spacer"));
+  const save = iconButton("Save map (Ctrl+S)", "floppy-disk", () => saveDialog());
+  topbar.insertBefore(save, title);
+  const identity = button("Sign in", () => { if (!player) signIn(); else void gallery(); }, "menu-btn account-identity");
+  topbar.append(identity);
+  const file = document.getElementById("menuFile");
+  function fileItem(label, symbol, action, shortcut) {
+    const item = button("", action, ""); item.setAttribute("role", "menuitem");
+    item.append(icon(symbol, true), make("span", label)); if (shortcut) item.append(make("kbd", shortcut)); return item;
+  }
+  const saveItem = fileItem("Save map", "floppy-disk", () => saveDialog(), "Ctrl S");
+  const submit = fileItem("Submit for review", "check-circle", () => saveDialog(true));
+  file.insertBefore(document.createElement("hr"), file.children[1]);
+  file.insertBefore(submit, file.children[1]);
+  file.insertBefore(saveItem, file.children[1]);
+  file.insertBefore(fileItem("My maps", "grid-four", () => void gallery()), file.firstChild);
+  controls.push({ title, save, submit, identity });
+  const legacyHost = document.querySelector("#shellCurrent .sidebar-header");
+  if (legacyHost) {
+    const toolbar = make("div", "", "account-legacy-controls");
+    toolbar.append(button("My maps", () => void gallery(), "action-button secondary"), button("Save map", () => saveDialog(), "action-button secondary"), button("Submit for review", () => saveDialog(true), "action-button"));
+    legacyHost.after(toolbar);
   }
   document.addEventListener("keydown", event => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s" && !overlays.length) { event.preventDefault(); saveDialog(); }

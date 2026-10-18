@@ -1,5 +1,69 @@
-.account-toolbar{display:flex;align-items:center;gap:6px;margin-left:12px;min-width:0}.account-toolbar .btn{font-size:12px;padding:5px 9px;white-space:nowrap}.account-title{max-width:150px;overflow:hidden;text-overflow:ellipsis}#shellCurrent .account-toolbar{flex-wrap:wrap;margin:8px 0}.account-scrim{position:fixed;inset:0;z-index:1000;background:#0009;display:grid;place-items:center;padding:24px;color:var(--text,#dfe5ed);font-family:inherit}.account-dialog{width:min(480px,100%);max-height:90vh;overflow:auto;border:1px solid var(--border,#334152);border-radius:10px;background:var(--panel,#17202c);padding:24px;box-shadow:0 20px 70px #0006}.account-dialog.account-wide{width:min(1040px,100%)}.account-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}.account-dialog h2{font-size:20px;margin:0}.account-dialog h3{font-size:16px;margin:0}.account-dialog label{display:flex;flex-direction:column;gap:7px;font-size:12px}.account-dialog input,.account-dialog select{background:var(--input-bg,#101823);color:inherit;border:1px solid var(--border,#334152);border-radius:5px;padding:9px;min-width:0;font:inherit}.account-filters{display:flex;align-items:end;flex-wrap:wrap;gap:12px}.account-filters label{flex:1}.account-map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}.account-map-card{border:1px solid var(--border,#334152);padding:18px;border-radius:7px;display:flex;flex-direction:column;gap:9px}.account-hint{color:var(--muted,#9caabc);font-size:13px;line-height:1.5}.account-map-card p{margin:0}.account-tags{display:flex;gap:6px;flex-wrap:wrap}.account-tag{font-size:11px;padding:3px 7px;border-radius:4px;background:#50667e30}.tag-accepted{color:#7adba8;background:#25845025}.tag-submitted{color:#94bdff;background:#3a6fa830}.account-card-actions{display:flex;gap:8px;margin-top:8px}.account-save-form{display:grid;gap:16px}.account-save-form p{margin:0}.account-error{color:#f0a8a4;font-size:13px;white-space:pre-wrap}.account-notice{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);z-index:1100;background:#1d2b3b;color:#f3f6fa;border:1px solid #456080;border-radius:7px;padding:12px 18px;max-width:min(600px,90vw);font:13px/1.5 sans-serif;box-shadow:0 10px 30px #0004}.account-notice[hidden]{display:none}@media(max-width:1200px){.account-toolbar .account-title{display:none}.account-toolbar{gap:3px;margin-left:5px}.account-toolbar .btn{padding:5px 6px}}@media(max-width:760px){#shellNew .topbar{height:auto;min-height:52px;flex-wrap:wrap}.account-toolbar{width:100%;padding-bottom:8px;margin:0 8px}.account-dialog{padding:16px}.account-scrim{padding:12px}.account-filters{align-items:stretch;flex-direction:column}}
-
-.account-scrim .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#253143;border:1px solid #405166;color:inherit;border-radius:5px;padding:8px 12px;text-decoration:none;font:500 12px/1.4 system-ui;cursor:pointer}.account-scrim .btn.primary{background:#5ecf9a;color:#05221a;border-color:#5ecf9a}.account-scrim .btn:disabled{opacity:.5;cursor:wait}.account-scrim :focus-visible{outline:2px solid #5ecf9a;outline-offset:3px}.account-toolbar .btn{cursor:pointer}
-
-.account-scrim{font-family:"Geist",system-ui,-apple-system,sans-serif}.account-dialog h2,.account-dialog h3,.account-dialog input,.account-dialog select{font-family:inherit}
+/* Account documents reuse the editor's controls, modal, and theme tokens. */
+#shellNew .account-title { margin-left: 6px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--text-2); font-size: 12px; }
+#shellNew .account-title.is-dirty { color: var(--text); }
+#shellNew .account-identity { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.account-dialog.settings-modal { width: min(440px, 100%); height: auto; max-height: calc(100dvh - 48px); grid-template-rows: 46px minmax(0, 1fr); }
+.account-dialog.account-wide { width: min(860px, 100%); height: min(540px, calc(100dvh - 48px)); }
+.account-dialog header .btn { margin-right: 4px; }
+.account-dialog header h2 { font-weight: 600; }
+.account-browser { min-height: 0; }
+.account-folders { overflow-y: auto; }
+.account-folders .settings-tab { flex-shrink: 0; }
+.account-folders .settings-tab span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-browser-content { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.account-filters { display: flex; align-items: center; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); }
+.account-search { position: relative; flex: 1; min-width: 0; }
+.account-search > .ico { position: absolute; left: 9px; top: 8px; color: var(--text-3); }
+.account-search > .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.account-search input { appearance: none; width: 100%; padding: 5px 9px 5px 30px; height: 30px; background: var(--field-bg); border: 1px solid var(--line-2); border-radius: var(--r-ctl); color: var(--text); }
+.account-filters select { height: 30px; max-width: 140px; }
+.account-map-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px; }
+.account-map-row { display: flex; gap: 12px; align-items: center; min-height: 66px; border-bottom: 1px solid var(--line); }
+.account-map-row.is-current .account-map-description strong { color: var(--accent); }
+.account-map-open { min-width: 0; flex: 1; display: flex; align-items: center; gap: 12px; align-self: stretch; padding: 10px 0; border: 0; background: none; text-align: left; cursor: pointer; color: var(--text-2); }
+.account-map-open:hover { color: var(--text); }
+.account-map-open > .ico { color: var(--text-3); }
+.account-map-description { min-width: 0; display: grid; gap: 3px; }
+.account-map-description strong { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-map-meta { color: var(--text-3); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; max-width: 135px; }
+.account-state { display: inline-flex; align-items: center; gap: 5px; color: var(--text-3); font-size: 11px; white-space: nowrap; }
+.account-state::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.account-state.state-accepted { color: var(--accent); }
+.account-state.state-submitted { color: var(--warn); }
+.account-map-date { color: var(--text-3); font: 10.5px var(--ff-mono); white-space: nowrap; }
+.account-link-space { width: 30px; flex-shrink: 0; }
+.account-dialog a.icon-btn { text-decoration: none; }
+.account-browser-count { margin: 0; padding: 8px 12px; border-top: 1px solid var(--line); color: var(--text-3); font: 11px var(--ff-mono); }
+.account-empty { margin: 0; padding: 24px 8px; color: var(--text-3); line-height: 1.5; }
+.account-save-form { display: flex; flex-direction: column; min-height: 0; }
+.account-form-fields { padding: 16px 18px; overflow-y: auto; display: grid; gap: 14px; }
+.account-form-fields label { display: grid; gap: 6px; color: var(--text-2); font-size: 12px; }
+.account-form-fields input { width: 100%; }
+.account-mode { display: flex; align-items: center; justify-content: space-between; color: var(--text-3); font-size: 12px; }
+.account-mode .readonly { color: var(--text-2); }
+.account-hint { margin: 0; color: var(--text-3); font-size: 12px; line-height: 1.45; }
+.account-error { margin: 0; color: var(--danger); font-size: 12px; white-space: pre-wrap; }
+.account-error:empty, .account-hint:empty { display: none; }
+.account-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.account-legacy-controls { display: grid; gap: 6px; margin-bottom: 14px; }
+/* The Current shell has its own palette and typography. */
+#shellCurrent .account-scrim { --surface: var(--bg-panel); --surface-2: var(--bg-panel-soft); --field-bg: var(--bg-workspace); --line: var(--border); --line-2: var(--border); --text: var(--text-main); --text-2: var(--text-main); --text-3: var(--text-dim); --accent-wash: var(--bg-panel-soft); --accent-ink: var(--bg-main); --warn: var(--text-main); --ff-mono: "Space Mono", monospace; --r-ctl: 6px; }
+#shellCurrent .account-scrim { position: fixed; inset: 0; z-index: 80; padding: 24px; display: grid; place-items: center; background: rgb(6 10 16 / 65%); }
+#shellCurrent .account-dialog { display: grid; background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; font-size: 13px; }
+#shellCurrent .account-dialog > header { display: flex; align-items: center; gap: 10px; padding: 0 10px 0 16px; border-bottom: 1px solid var(--line); }
+#shellCurrent .account-dialog h2 { flex: 1; font-size: 14px; margin: 0; }
+#shellCurrent .account-browser { display: grid; grid-template-columns: 180px minmax(0, 1fr); }
+#shellCurrent .account-folders { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-right: 1px solid var(--line); }
+#shellCurrent .account-dialog button, #shellCurrent .account-dialog input, #shellCurrent .account-dialog select { font: inherit; color: inherit; }
+#shellCurrent .account-dialog input, #shellCurrent .account-dialog select { min-width: 0; padding: 5px 9px; background: var(--field-bg); border: 1px solid var(--line-2); border-radius: var(--r-ctl); }
+#shellCurrent .account-dialog .ico { width: 18px; height: 18px; fill: currentColor; flex: none; }
+#shellCurrent .account-dialog .ico.sm { width: 15px; height: 15px; }
+#shellCurrent .account-dialog .btn, #shellCurrent .account-dialog .icon-btn, #shellCurrent .account-dialog .settings-tab { background: none; border: 0; cursor: pointer; }
+#shellCurrent .account-dialog .btn { height: 28px; padding: 0 11px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface-2); }
+#shellCurrent .account-dialog .btn.primary { background: var(--accent); color: var(--accent-ink); }
+#shellCurrent .account-dialog .icon-btn { width: 30px; height: 30px; display: grid; place-items: center; }
+#shellCurrent .account-dialog .settings-tab { display: flex; align-items: center; gap: 8px; padding: 8px 9px; text-align: left; border-radius: 5px; }
+#shellCurrent .account-dialog .settings-tab.active { background: var(--accent-wash); color: var(--accent); }
+@media (max-width: 1000px) { #shellNew .account-title { max-width: 100px; } #shellNew .account-identity { max-width: 80px; } }
+@media (max-width: 700px) { #shellNew .account-title { display: none; } .account-scrim.modal-scrim { padding: 12px; } .account-dialog.settings-modal { max-height: calc(100dvh - 24px); } .account-dialog.account-wide { height: min(560px, calc(100dvh - 24px)); } .account-browser.settings-layout, #shellCurrent .account-browser { grid-template-columns: 125px minmax(0, 1fr); } .account-folders .settings-tab { padding-inline: 5px; } .account-map-date { display: none; } .account-map-row { flex-wrap: wrap; gap: 4px 8px; padding-bottom: 8px; } .account-map-open { flex-basis: calc(100% - 40px); } .account-tags { order: 3; max-width: none; margin-left: 30px; justify-content: flex-start; } .account-filters { flex-direction: column; align-items: stretch; } .account-filters select { max-width: none; } }

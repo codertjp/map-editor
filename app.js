@@ -4930,6 +4930,7 @@ function normalizeMapHolesInState() {
 }
 
 function saveSession() {
+  window.dispatchEvent?.(new Event("cosmowar-document-change"));
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
       version: 1,
@@ -6503,6 +6504,7 @@ function importMap(event) {
       centerMapStateOnOrigin(imported);
       const before = cloneState(state);
       state = imported;
+      window.dispatchEvent?.(new Event("cosmowar-new-document"));
       pushHistory("IMPORT_JSON", before, cloneState(state));
       onStateReplaced();
       const report = getMapValidationReport();
@@ -8618,6 +8620,7 @@ function createNewMapFromMenu() {
   fitBoundaryInView();
   renderSelectionPanel();
   updateMirrorStatus();
+  if (changed) window.dispatchEvent?.(new Event("cosmowar-new-document"));
   setActionState("New map created", "success", true);
   return changed;
 }
@@ -8633,6 +8636,29 @@ if (!globalThis.__COSMOWAR_EDITOR_TEST__) {
       saveSession();
     },
     newMap: createNewMapFromMenu,
+    getDocument() {
+      if (conversionSession) throw new Error("Finish or cancel map conversion before saving.");
+      return buildExportPayload(state);
+    },
+    validateDocument() {
+      if (conversionSession) return "Finish map conversion before submitting.";
+      if (getOutOfBoundsObjects().length) return "Move out-of-bounds objects into the map before submitting.";
+      return validateForExport(state);
+    },
+    openDocument(content) {
+      if (multiplayerManager && multiplayerManager.role !== "offline") throw new Error("Leave the live editing session before opening another map.");
+      if (conversionSession) throw new Error("Finish or cancel map conversion before opening another map.");
+      const imported = parseImportedState(content);
+      state = imported;
+      history.undo = [];
+      history.redo = [];
+      selection.clear();
+      mirrorState.axes = [];
+      interaction.selectedMirrorAxisIndex = null;
+      onStateReplaced();
+      fitBoundaryInView();
+      requestRender();
+    },
     undo: undoAction,
     redo: redoAction,
     copy: copySelectionToClipboard,

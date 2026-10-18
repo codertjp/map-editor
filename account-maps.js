@@ -7,6 +7,7 @@
   try { feedback = new URL(configured); if (!/^https?:$/.test(feedback.protocol)) return; } catch { return; }
   let player = null;
   let current = null;
+  let reviewDraft = null;
   let maps = [];
   let baseline = "";
   let dirty = false;
@@ -55,8 +56,8 @@
   }
   function sync() {
     for (const item of controls) {
-      item.title.textContent = current ? `${current.name}${dirty ? " •" : ""}` : "Local draft";
-      item.title.title = current ? `Revision ${current.revision}${dirty ? " · Unsaved changes" : " · Saved"}` : "Save this draft to your account";
+      item.title.textContent = current ? `${current.name}${dirty ? " •" : ""}` : reviewDraft ? `${reviewDraft.name} · Review copy` : "Local draft";
+      item.title.title = current ? `Revision ${current.revision}${dirty ? " · Unsaved changes" : " · Saved"}` : reviewDraft ? `FB-${reviewDraft.reportId} · Revision ${reviewDraft.revision} · Changes stay in your own copy` : "Save this draft to your account";
       item.identity.textContent = player ? player.displayName : "Sign in";
       item.save.disabled = busy; item.submit.disabled = busy;
       item.title.classList.toggle("is-dirty", dirty);
@@ -92,13 +93,13 @@
     }
   }, true);
   function field(label, value, maxLength = 80) { const wrap = make("label"); wrap.append(make("span", label)); const input = make("input"); input.type = "text"; input.value = value || ""; input.maxLength = maxLength; wrap.append(input); return { wrap, input }; }
-  function updateUrl(id) { const url = new URL(location.href); url.searchParams.delete("gallery"); if (id) url.searchParams.set("map", id); else url.searchParams.delete("map"); window.history.replaceState(null, "", url); }
+  function updateUrl(id) { const url = new URL(location.href); url.searchParams.delete("gallery"); url.searchParams.delete("review"); if (new URLSearchParams(url.hash.slice(1)).has("review-token")) url.hash = ""; if (id) url.searchParams.set("map", id); else url.searchParams.delete("map"); window.history.replaceState(null, "", url); }
   function changed() {
     clearTimeout(polling);
     polling = setTimeout(() => { try { dirty = JSON.stringify(api.getDocument()) !== baseline; sync(); } catch { dirty = true; sync(); } }, 200);
   }
   window.addEventListener("cosmowar-document-change", changed);
-  window.addEventListener("cosmowar-new-document", () => { current = null; baseline = ""; dirty = true; updateUrl(null); sync(); });
+  window.addEventListener("cosmowar-new-document", () => { current = null; reviewDraft = null; baseline = ""; dirty = true; updateUrl(null); sync(); });
   window.addEventListener("beforeunload", event => { if (dirty && player) { event.preventDefault(); event.returnValue = ""; } });
 
   async function openMap(id, overlay) {
@@ -107,7 +108,7 @@
     try {
       const result = await request(`/api/maps/${encodeURIComponent(id)}`);
       api.openDocument(result.map.content);
-      current = result.map; baseline = JSON.stringify(api.getDocument()); dirty = false; updateUrl(id); sync();
+      current = result.map; reviewDraft = null; baseline = JSON.stringify(api.getDocument()); dirty = false; updateUrl(id); sync();
       if (overlay) close(overlay);
     } catch (error) { tell(error.message); }
     finally { busy = false; sync(); }
@@ -174,7 +175,7 @@
     if (!player.nameConfirmed) { const welcome = new URL("/welcome", feedback); welcome.searchParams.set("next", location.href); location.assign(welcome.href); return; }
     const { panel, overlay } = dialog(submit ? "Submit for review" : "Save map");
     const form = make("form", "", "account-save-form");
-    const name = field("Map name", current?.name || ""); name.input.required = true;
+    const name = field("Map name", current?.name || (reviewDraft ? `${reviewDraft.name.slice(0, 73)} (copy)` : "")); name.input.required = true;
     const folder = field("Folder", current?.folder || ""); folder.input.placeholder = "e.g. In progress / Arenas";
     const mode = make("div", "", "account-mode"); mode.append(make("span", "Game mode"), make("span", "Defuse", "readonly"));
     const note = make("p", submit ? "Saves this revision and opens its feedback discussion." : "", "account-hint");
@@ -191,7 +192,7 @@
         if (submit) { const problem = api.validateDocument(); if (problem) throw new Error(problem); }
         const sent = JSON.stringify(content);
         const result = await request(current ? `/api/maps/${encodeURIComponent(current.id)}` : "/api/maps", current ? "PUT" : "POST", { name: name.input.value.trim(), folder: folder.input.value.trim(), mode: "defuse", content, ...(current ? { revision: current.revision } : {}) });
-        current = result.map; baseline = sent; dirty = JSON.stringify(api.getDocument()) !== sent; updateUrl(current.id); sync();
+        current = result.map; reviewDraft = null; baseline = sent; dirty = JSON.stringify(api.getDocument()) !== sent; updateUrl(current.id); sync();
         if (submit) {
           const submitted = await request(`/api/maps/${encodeURIComponent(current.id)}/submit`, "POST", { revision: current.revision });
           current = submitted.map;
@@ -232,14 +233,26 @@
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s" && !overlays.length) { event.preventDefault(); saveDialog(); }
   });
   async function init() {
+    const query = new URLSearchParams(location.search);
+    const reviewToken = new URLSearchParams(location.hash.slice(1)).get("review-token");
     try {
       player = (await request("/api/editor-session")).player;
       sync();
-      const query = new URLSearchParams(location.search);
+    } catch { tell("Account maps are unavailable. Your local editor remains available."); sync(); }
+    if (reviewToken) {
+      busy = true; sync();
+      try {
+        const result = await request("/api/maps/review", "POST", { token: reviewToken });
+        api.openDocument(result.content);
+        current = null; reviewDraft = result; baseline = JSON.stringify(api.getDocument()); dirty = false;
+        tell(`Opened ${result.name} · Revision ${result.revision}. Changes stay in your own copy.`);
+      } catch (error) { tell(error.message); }
+      finally { busy = false; sync(); }
+    } else {
       const id = query.get("map");
       if (player && id) await openMap(id);
       if (player && query.has("gallery")) await gallery();
-    } catch { tell("Account maps are unavailable. Your local editor remains available."); sync(); }
+    }
   }
   void init();
 })();
